@@ -1,51 +1,178 @@
-// Cole isso dentro da sua tag <script> no index.html do seu repositório
-const SERVICE_UUID = '4fafc201-1fb5-459e-8fcc-c5c9c331914b';
-const CHARACTERISTIC_UUID = 'beb5483e-36e1-4688-b7f5-ea07361b26a8';
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spacepro - Teclott do Brasil</title>
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#00529B">
+    <style>
+        :root {
+            --primary: #00529B;
+            --bg: #F4F6F9;
+            --card: #FFFFFF;
+            --text: #333333;
+            --success: #28a745;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 90vh;
+        }
+        .container {
+            width: 100%;
+            max-width: 400px;
+            background-color: var(--card);
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        .header {
+            background-color: var(--primary);
+            color: white;
+            text-align: center;
+            padding: 25px 15px;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        .header p {
+            margin: 5px 0 0 0;
+            font-size: 14px;
+            letter-spacing: 2px;
+            opacity: 0.9;
+        }
+        .content {
+            padding: 25px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .status-container {
+            background-color: #F0F4F8;
+            border-radius: 10px;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+            font-size: 16px;
+        }
+        .ble-badge {
+            color: #00529B;
+            font-size: 13px;
+            font-weight: bold;
+        }
+        .btn-connect {
+            background-color: var(--success);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            padding: 15px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: background 0.2s;
+            width: 100%;
+        }
+        .btn-connect:active {
+            background-color: #218838;
+        }
+        .footer {
+            text-align: center;
+            font-size: 12px;
+            color: #888888;
+        }
+    </style>
+</head>
+<body>
 
-let meuDispositivo = null;
-let minhaCaracteristica = null;
+<div class="container">
+    <div class="header">
+        <h1>Teclott do Brasil</h1>
+        <p>SPACEPRO</p>
+    </div>
+    <div class="content">
+        <div class="status-container">
+            <span id="status-text">Status: ❌ Desconectado</span>
+            <span class="ble-badge">BLE v5.2</span>
+        </div>
+        <button id="btn-bluetooth" class="btn-connect" onclick="conectarBluetooth()">
+            <span>🔌 Conectar via Bluetooth</span>
+        </button>
+    </div>
+</div>
 
-async function conectarBluetooth() {
-    const statusText = document.getElementById("status-text"); // Ajuste se o ID do seu texto for diferente
-    
-    try {
-        statusText.innerText = "🔄 Buscando dispositivo...";
-        
-        meuDispositivo = await navigator.bluetooth.requestDevice({
-            filters: [{ name: 'Shelly-C6-BLE' }],
-            optionalServices: [SERVICE_UUID]
-        });
+<div class="footer">
+    © Teclott do Brasil 2026 | Spacepro Hardware
+</div>
 
-        statusText.innerText = "🔄 Conectando ao servidor GATT...";
-        const servidor = await meuDispositivo.gatt.connect();
+<script>
+    // Configurações UUID do seu projeto ESP32
+    const SERVICE_UUID = '4fafc201-1fb5-459e-8fcc-c5c9c331914b';
+    const CHARACTERISTIC_UUID = 'beb5483e-36c1-4688-b7f5-ea07361b26a8';
 
-        statusText.innerText = "🔄 Buscando serviço principal...";
-        const servico = await servidor.getPrimaryService(SERVICE_UUID);
+    let meuDispositivo = null;
+    let minhaCaracteristica = null;
 
-        statusText.innerText = "🔄 Mapeando característica...";
-        minhaCaracteristica = await servico.getCharacteristic(CHARACTERISTIC_UUID);
+    async function conectarBluetooth() {
+        const statusText = document.getElementById("status-text");
+        try {
+            statusText.innerText = "🔍 Buscando dispositivo...";
+            
+            // Procura por dispositivos que comecem com o nome do seu projeto
+            meuDispositivo = await navigator.bluetooth.requestDevice({
+                filters: [{ namePrefix: 'Spacepro' }],
+                optionalServices: [SERVICE_UUID]
+            });
 
-        statusText.innerHTML = "🟢 Conectado com SUCESSO! BLE v5.2";
-        console.log("Sucesso! Aparelho pronto para receber comandos.");
+            statusText.innerText = "🔌 Conectando ao servidor...";
+            const servidor = await meuDispositivo.gatt.connect();
 
-    } catch (error) {
-        console.error("Erro na conexão: ", error);
-        statusText.innerText = "❌ Falha ao conectar. Tente novamente.";
+            statusText.innerText = "🔍 Buscando serviço...";
+            const servico = await servidor.getPrimaryService(SERVICE_UUID);
+
+            minhaCaracteristica = await servico.getCharacteristic(CHARACTERISTIC_UUID);
+
+            statusText.innerHTML = "Status: 🟢 Conectado";
+            console.log("Bluetooth conectado com sucesso!");
+
+        } catch (error) {
+            console.error("Erro Bluetooth:", error);
+            statusText.innerHTML = "Status: ❌ Falha na conexão";
+            alert("Erro ao conectar: " + error.message);
+        }
     }
-}
 
-// Função auxiliar que você pode chamar em botões de "Ligar" e "Desligar" na interface
-async function enviarComandoRele(valor) {
-    if (!minhaCaracteristica) {
-        alert("Dispositivo não conectado!");
-        return;
+    async function enviarComando(valor) {
+        if (!minhaCaracteristica) {
+            alert("Dispositivo não conectado!");
+            return;
+        }
+        try {
+            const dados = new TextEncoder().encode(valor);
+            await minhaCaracteristica.writeValue(dados);
+            console.log('Comando ' + valor + ' enviado com sucesso!');
+        } catch (error) {
+            console.error('Erro ao enviar comando:', error);
+        }
     }
-    try {
-        // Envia '1' para ligar ou '0' para desligar
-        const dados = new TextEncoder().encode(valor);
-        await minhaCaracteristica.writeValueWithoutResponse(dados);
-        console.log(`Comando ${valor} enviado com sucesso!`);
-    } catch (error) {
-        console.error("Erro ao enviar comando: ", error);
-    }
-}
+</script>
+
+</body>
+</html>
