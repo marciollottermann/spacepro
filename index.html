@@ -14,6 +14,7 @@
             --card: #FFFFFF;
             --text: #333333;
             --success: #28a745;
+            --danger: #dc3545;
         }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -75,7 +76,7 @@
             font-weight: bold;
         }
         .btn-connect {
-            background-color: var(--success);
+            background-color: var(--primary);
             color: white;
             border: none;
             border-radius: 10px;
@@ -90,9 +91,29 @@
             transition: background 0.2s;
             width: 100%;
         }
-        .btn-connect:active {
-            background-color: #218838;
+        .btn-connect:active { opacity: 0.8; }
+        
+        /* Painel de Controle de Relé oculto por padrão */
+        .control-panel {
+            display: none;
+            flex-direction: column;
+            gap: 15px;
+            margin-top: 10px;
         }
+        .btn-action {
+            border: none;
+            border-radius: 10px;
+            padding: 18px;
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        .btn-on { background-color: var(--success); }
+        .btn-off { background-color: var(--danger); }
+        .btn-action:active { transform: scale(0.98); }
+
         .footer {
             text-align: center;
             font-size: 12px;
@@ -112,9 +133,15 @@
             <span id="status-text">Status: ❌ Desconectado</span>
             <span class="ble-badge">BLE v5.2</span>
         </div>
+        
         <button id="btn-bluetooth" class="btn-connect" onclick="conectarBluetooth()">
             <span>🔌 Conectar via Bluetooth</span>
         </button>
+
+        <div id="panel-control" class="control-panel">
+            <button class="btn-action btn-on" onclick="enviarComando('1')">⚡ LIGAR RELÉ</button>
+            <button class="btn-action btn-off" onclick="enviarComando('0')">💤 DESLIGAR RELÉ</button>
+        </div>
     </div>
 </div>
 
@@ -123,7 +150,7 @@
 </div>
 
 <script>
-    // Configurações UUID do seu projeto ESP32
+    // Configurações UUID emparelhadas com o ESP32-C6
     const SERVICE_UUID = '4fafc201-1fb5-459e-8fcc-c5c9c331914b';
     const CHARACTERISTIC_UUID = 'beb5483e-36c1-4688-b7f5-ea07361b26a8';
 
@@ -132,44 +159,58 @@
 
     async function conectarBluetooth() {
         const statusText = document.getElementById("status-text");
+        const btnConnect = document.getElementById("btn-bluetooth");
+        const panelControl = document.getElementById("panel-control");
+
         try {
-            statusText.innerText = "🔍 Buscando dispositivo...";
+            statusText.innerText = "🔍 Buscando...";
             
-            // Procura por dispositivos que comecem com o nome do seu projeto
             meuDispositivo = await navigator.bluetooth.requestDevice({
                 filters: [{ namePrefix: 'Spacepro' }],
                 optionalServices: [SERVICE_UUID]
             });
 
-            statusText.innerText = "🔌 Conectando ao servidor...";
+            statusText.innerText = "🔌 Conectando...";
             const servidor = await meuDispositivo.gatt.connect();
 
-            statusText.innerText = "🔍 Buscando serviço...";
+            statusText.innerText = "🔍 Localizando Serviço...";
             const servico = await servidor.getPrimaryService(SERVICE_UUID);
 
+            statusText.innerText = "🔍 Mapeando Canal...";
             minhaCaracteristica = await servico.getCharacteristic(CHARACTERISTIC_UUID);
 
             statusText.innerHTML = "Status: 🟢 Conectado";
-            console.log("Bluetooth conectado com sucesso!");
+            btnConnect.style.display = "none";     // Oculta botão conectar
+            panelControl.style.display = "flex";   // Mostra botões de controle
+
+            // Monitora desconexão acidental
+            meuDispositivo.addEventListener('gattserverdisconnected', () => {
+                statusText.innerHTML = "Status: ❌ Desconectado";
+                btnConnect.style.display = "flex";
+                panelControl.style.display = "none";
+                minhaCaracteristica = null;
+            });
 
         } catch (error) {
             console.error("Erro Bluetooth:", error);
-            statusText.innerHTML = "Status: ❌ Falha na conexão";
-            alert("Erro ao conectar: " + error.message);
+            statusText.innerHTML = "Status: ❌ Falha";
+            alert("Falha ao parear: " + error.message);
         }
     }
 
     async function enviarComando(valor) {
         if (!minhaCaracteristica) {
-            alert("Dispositivo não conectado!");
+            alert("Dispositivo desconectado!");
             return;
         }
         try {
+            // Converte string '1' ou '0' em array de bytes
             const dados = new TextEncoder().encode(valor);
             await minhaCaracteristica.writeValue(dados);
-            console.log('Comando ' + valor + ' enviado com sucesso!');
+            console.log("Comando enviado: " + valor);
         } catch (error) {
-            console.error('Erro ao enviar comando:', error);
+            console.error("Erro ao enviar dado:", error);
+            alert("Erro de transmissão.");
         }
     }
 </script>
