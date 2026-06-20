@@ -1,228 +1,51 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Spacepro - Teclott do Brasil</title>
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="theme-color" content="#00529B">
+// Cole isso dentro da sua tag <script> no index.html do seu repositório
+const SERVICE_UUID = '4fafc201-1fb5-459e-8fcc-c5c9c331914b';
+const CHARACTERISTIC_UUID = 'beb5483e-36e1-4688-b7f5-ea07361b26a8';
+
+let meuDispositivo = null;
+let minhaCaracteristica = null;
+
+async function conectarBluetooth() {
+    const statusText = document.getElementById("status-text"); // Ajuste se o ID do seu texto for diferente
     
-    <style>
-        :root {
-            --primary: #00529B;
-            --accent: #FF9900;
-            --bg: #F4F6F9;
-            --card: #FFFFFF;
-            --text: #333333;
-        }
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg);
-            color: var(--text);
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        .header {
-            text-align: center;
-            background: var(--primary);
-            color: white;
-            width: 100%;
-            max-width: 450px;
-            padding: 20px 0;
-            border-radius: 15px 15px 0 0;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-        .header h1 { margin: 0; font-size: 24px; font-weight: 600; }
-        .header p { margin: 5px 0 0 0; font-size: 14px; opacity: 0.8; letter-spacing: 2px; }
+    try {
+        statusText.innerText = "🔄 Buscando dispositivo...";
         
-        .container {
-            width: 100%;
-            max-width: 450px;
-            background: var(--card);
-            border-radius: 0 0 15px 15px;
-            padding: 20px;
-            box-sizing: border-box;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-        }
-        .status-bar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: #E8F0FE;
-            padding: 12px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            font-weight: bold;
-        }
-        .btn {
-            width: 100%;
-            padding: 15px;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.2s;
-            margin-bottom: 15px;
-        }
-        .btn-connect { background-color: #28a745; color: white; }
-        .btn-action { background-color: var(--accent); color: white; display: none; }
-        .btn-save { background-color: var(--primary); color: white; width: 100%; margin-top: 10px; }
-        
-        .rele-status {
-            text-align: center;
-            font-size: 22px;
-            font-weight: bold;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            background: #E0E0E0;
-            display: none;
-        }
-        .section {
-            border: 1px solid #E0E0E0;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 15px;
-            display: none;
-        }
-        .section h3 { margin-top: 0; color: var(--primary); font-size: 16px; }
-        .form-group { margin-bottom: 12px; }
-        label { display: block; margin-bottom: 5px; font-size: 14px; font-weight: 500; }
-        select, input {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #CCC;
-            border-radius: 6px;
-            box-sizing: border-box;
-            font-size: 15px;
-        }
-        .footer { text-align: center; font-size: 11px; color: #999; margin-top: 20px; }
-    </style>
-</head>
-<body>
+        meuDispositivo = await navigator.bluetooth.requestDevice({
+            filters: [{ name: 'Shelly-C6-BLE' }],
+            optionalServices: [SERVICE_UUID]
+        });
 
-    <div class="header">
-        <h1>Teclott do Brasil</h1>
-        <p>SPACEPRO</p>
-    </div>
+        statusText.innerText = "🔄 Conectando ao servidor GATT...";
+        const servidor = await meuDispositivo.gatt.connect();
 
-    <div class="container">
-        <div class="status-bar">
-            <span id="ble-status">Status: ❌ Desconectado</span>
-            <span id="hardware-tag" style="font-size: 12px; color: var(--primary);">BLE v5.2</span>
-        </div>
+        statusText.innerText = "🔄 Buscando serviço principal...";
+        const servico = await servidor.getPrimaryService(SERVICE_UUID);
 
-        <button class="btn btn-connect" id="connectBtn" onclick="conectarBluetooth()">🔌 Conectar via Bluetooth</button>
+        statusText.innerText = "🔄 Mapeando característica...";
+        minhaCaracteristica = await servico.getCharacteristic(CHARACTERISTIC_UUID);
 
-        <div id="statusRele" class="rele-status">RELÉ: ---</div>
+        statusText.innerHTML = "🟢 Conectado com SUCESSO! BLE v5.2";
+        console.log("Sucesso! Aparelho pronto para receber comandos.");
 
-        <button class="btn btn-action" id="actionBtn" onclick="alternarRele()">⚡ ALTERNAR RELÉ</button>
+    } catch (error) {
+        console.error("Erro na conexão: ", error);
+        statusText.innerText = "❌ Falha ao conectar. Tente novamente.";
+    }
+}
 
-        <div class="section" id="configSection">
-            <h3>Modos de Operação (Botão Schneider)</h3>
-            <div class="form-group">
-                <label for="modoSelect">Selecione o Modo:</label>
-                <select id="modoSelect">
-                    <option value="1">1: Retenção (Toggle)</option>
-                    <option value="2">2: Momentâneo (Pulso)</option>
-                    <option value="3">3: Temporizador (Timer)</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="tempoInput">Tempo do Temporizador (segundos):</label>
-                <input type="number" id="tempoInput" value="5" min="1" max="255">
-            </div>
-            <button class="btn btn-save" onclick="salvarConfiguracao()">💾 SALVAR CONFIGURAÇÃO</button>
-        </div>
-        
-        <div class="footer">© Teclott do Brasil 2026 | Spacepro Hardware</div>
-    </div>
-
-    <script>
-        // Definições idênticas ao firmware do ESP32-C6
-        const SEV_UUID = 0x1234;
-        const CHR_UUID = 0x5678;
-        
-        let dispositivoBle = null;
-        let caracteristicaConfig = null;
-
-        async function conectarBluetooth() {
-            try {
-                document.getElementById('ble-status').innerText = "Buscando...";
-                
-                dispositivoBle = await navigator.bluetooth.requestDevice({
-                    filters: [{ name: 'Shelly-C6-BLE' }],
-                    optionalServices: [SEV_UUID]
-                });
-
-                const server = await dispositivoBle.gatt.connect();
-                const service = await server.getPrimaryService(SEV_UUID);
-                caracteristicaConfig = await service.getCharacteristic(CHR_UUID);
-
-                // Ativa notificações em tempo real vindas do ESP32-C6
-                await caracteristicaConfig.startNotifications();
-                caracteristicaConfig.addEventListener('characteristicvaluechanged', tratarDadosRecebidos);
-
-                document.getElementById('ble-status').innerText = "Status: ✅ Conectado";
-                document.getElementById('connectBtn').style.display = 'none';
-                document.getElementById('statusRele').style.style.display = 'block';
-                document.getElementById('actionBtn').style.display = 'block';
-                document.getElementById('configSection').style.display = 'block';
-
-                // Faz uma leitura inicial para sincronizar os componentes da tela
-                let valorInicial = await caracteristicaConfig.readValue();
-                tratarDadosRecebidos({ target: { value: valorInicial } });
-
-            } catch (error) {
-                console.log(error);
-                document.getElementById('ble-status').innerText = "Status: ❌ Erro ao Conectar";
-            }
-        }
-
-        function tratarDadosRecebidos(event) {
-            let valor = event.target.value;
-            let modo = valor.getUint8(0);
-            let tempo = valor.getUint8(1);
-            let estadoRele = valor.getUint8(2);
-
-            // Atualiza os elementos visuais na tela
-            document.getElementById('modoSelect').value = modo;
-            document.getElementById('tempoInput').value = tempo;
-            
-            const divRele = document.getElementById('statusRele');
-            if(estadoRele === 1) {
-                divRele.innerText = "RELÉ: LIGADO 🔥";
-                divRele.style.backgroundColor = "#dc3545";
-                divRele.style.color = "white";
-            } else {
-                divRele.innerText = "RELÉ: DESLIGADO ❄️";
-                divRele.style.backgroundColor = "#28a745";
-                divRele.style.color = "white";
-            }
-        }
-
-        async function alternarRele() {
-            if (!caracteristicaConfig) return;
-            // Envia Comando 4 (Acionamento manual)
-            let dados = new Uint8Array([4, 0]);
-            await caracteristicaConfig.writeValue(dados);
-        }
-
-        async function salvarConfiguracao() {
-            if (!caracteristicaConfig) return;
-            let modo = parseInt(document.getElementById('modoSelect').value);
-            let tempo = parseInt(document.getElementById('tempoInput').value);
-            
-            // Envia Modo (1, 2 ou 3) e o tempo escolhido
-            let dados = new Uint8Array([modo, tempo]);
-            await caracteristicaConfig.writeValue(dados);
-            alert("Configuração enviada com sucesso para o Spacepro!");
-        }
-    </script>
-</body>
-</html>
+// Função auxiliar que você pode chamar em botões de "Ligar" e "Desligar" na interface
+async function enviarComandoRele(valor) {
+    if (!minhaCaracteristica) {
+        alert("Dispositivo não conectado!");
+        return;
+    }
+    try {
+        // Envia '1' para ligar ou '0' para desligar
+        const dados = new TextEncoder().encode(valor);
+        await minhaCaracteristica.writeValueWithoutResponse(dados);
+        console.log(`Comando ${valor} enviado com sucesso!`);
+    } catch (error) {
+        console.error("Erro ao enviar comando: ", error);
+    }
+}
